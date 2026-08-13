@@ -50,4 +50,13 @@ if(existingTransaction){
         })
     }
 }
+/**
+ * validating account status for transaction
+ */
+if(fromUserAccount.status !== "ACTIVE" || toUserAccount.status !== "ACTIVE"){
+    return res.status(400).json({
+        message: "fromAccount or toAccount is not active"
+    })
+
+}
 }
