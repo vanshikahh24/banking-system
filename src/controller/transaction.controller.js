@@ -94,3 +94,10 @@ transaction.status = "COMPLETED";
 await transaction.save({session});
 await session.commitTransaction();
 session.endSession();
+/** send email notification to both users */
+await emailService.sendEmail(req.user.email, req.user.name, toAccount, amount, "DEBIT");
+return res.status(201).json({
+    message: "transaction completed successfully",
+    transaction 
+})
+            
