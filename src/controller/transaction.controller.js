@@ -60,3 +60,9 @@ if(fromUserAccount.status !== "ACTIVE" || toUserAccount.status !== "ACTIVE"){
 
 }
 }
+/** derive sender balance from ledger */
+if(balance < amount){
+    return res.status(400).json({
+        message: "insufficient balance in fromUserAccount"
+    })
+}
