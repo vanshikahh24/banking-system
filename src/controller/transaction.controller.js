@@ -1,5 +1,6 @@
 const accountModel = require("../models/account.model");
 const emailService = require("../services/email.service");
+const mongoose = require("mongoose");
 /**
 validating request 
  */
@@ -66,3 +67,30 @@ if(balance < amount){
         message: "insufficient balance in fromUserAccount"
     })
 }
+/**create transaction(PENDING) */
+const session = await mongoose.startSession();
+const transaction = await transactionModel.create({
+    fromAccount,
+    toAccount,
+    amount,
+    idempotencyKey,
+    status: "PENDING"
+}, { session})
+const debitLedgerEntry = await ledgerModel.create({
+    account: fromAccount,
+    type: "DEBIT",
+    amount: amount,
+    transaction: transaction._id
+},{session}
+)
+const creditLedgerEntry = await ledgerModel.create({
+    account: toAccount,
+    type: "CREDIT",
+    amount: amount,
+    transaction: transaction._id
+},{session}
+)
+transaction.status = "COMPLETED";
+await transaction.save({session});
+await session.commitTransaction();
+session.endSession();
