@@ -1,13 +1,13 @@
 const express = require("express");
+const router = express.Router();
 
 const {
     authMiddleware
 } = require("../middleware/auth.middleware");
 
-const createAccountController = require("../controller/account.controller");
+const AccountController = require("../controller/account.controller");
 
-const router = express.Router();
-
-router.post("/", authMiddleware, createAccountController);
-
+router.post("/", authMiddleware, AccountController.createAccountController);
+/** GET API */
+router.get("/", authMiddleware, AccountController.getUserAccountController);
 module.exports = router;
