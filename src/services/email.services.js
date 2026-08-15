@@ -76,7 +76,38 @@ The Banking System Team`;
     );
 }
 
-
+async function sendTransactionEmail(userEmail, name, toAccount, amount){
+    const subject = "transaction notification";
+    const text = `hello ${name}`;
+    const html = `
+        <h2>Hello ${name},</h2>
+        <p>A transaction has been completed for your account.</p>
+        <p>Amount: $${amount.toFixed(2)}</p>
+        <p>Recipient: ${toAccount}</p>
+    `;
+    await sendEmail(
+        userEmail,
+        subject,
+        text,
+        html
+    );
+}
+async function sendTransactionEmailFailure(userEmail, name, toAccount, amount){
+    const subject = "transactio notification";
+    const text = `hello ${name}`;
+    const html = `
+        <h2>Hello ${name},</h2>
+        <p>A transaction has failed for your account.</p>
+    `;
+    await sendEmail(
+        userEmail,
+        subject,
+        text,
+        html
+    );
+}
 module.exports = {
-    sendRegistrationEmail
+    sendRegistrationEmail,
+    sendTransactionEmail,
+    sendTransactionEmailFailure
 };

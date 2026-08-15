@@ -21,14 +21,14 @@ const transactionSchema = new mongoose.Schema({
         },
         default : "PENDING"
     },
-    account:{
+    amount:{
         type: Number,
         required: [true, "amount is required for creating transactions"],
         min:[0, "transactions cannot be negative"]
     },
-    itempotencyKey:{
+    idempotencyKey:{
         type: String,
-        required:[true, "itempotency key is require for transactions"],
+        required:[true, "idempotency key is required for transactions"],
         index : true,
         unique : true
     },
