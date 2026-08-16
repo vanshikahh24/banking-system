@@ -8,11 +8,11 @@ const mongoose = require("mongoose");
 /**
 validating request
 */
-async function createTransaction(req,res){
+async function createTransaction(req, res) {
 
     const { fromAccount, toAccount, amount, idempotencyKey } = req.body;
 
-    if(!fromAccount || !toAccount || !amount || !idempotencyKey){
+    if (!fromAccount || !toAccount || !amount || !idempotencyKey) {
         return res.status(400).json({
             message: "fromAccount, toAccount, amount and idempotencyKey are required fields"
         })
@@ -26,7 +26,7 @@ async function createTransaction(req,res){
         _id: toAccount,
     })
 
-    if(!fromUserAccount || !toUserAccount){
+    if (!fromUserAccount || !toUserAccount) {
         return res.status(404).json({
             message: "fromAccount or toAccount not found"
         })
@@ -39,27 +39,27 @@ async function createTransaction(req,res){
         idempotencyKey: idempotencyKey
     })
 
-    if(existingTransaction){
+    if (existingTransaction) {
 
-        if(existingTransaction.status === "COMPLETED"){
+        if (existingTransaction.status === "COMPLETED") {
             return res.status(409).json({
                 message: "transaction with this idempotency key has already been completed"
             })
         }
 
-        if(existingTransaction.status === "PENDING"){
+        if (existingTransaction.status === "PENDING") {
             return res.status(409).json({
                 message: "transaction with this idempotency key is still pending"
             })
         }
 
-        if(existingTransaction.status === "FAILED"){
+        if (existingTransaction.status === "FAILED") {
             return res.status(409).json({
                 message: "transaction with this idempotency key has already failed"
             })
         }
 
-        if(existingTransaction.status === "REVERSED"){
+        if (existingTransaction.status === "REVERSED") {
             return res.status(409).json({
                 message: "transaction with this idempotency key has already been reversed"
             })
@@ -69,7 +69,7 @@ async function createTransaction(req,res){
     /**
      * validating account status for transaction
      */
-    if(fromUserAccount.status !== "active" || toUserAccount.status !== "active"){
+    if (fromUserAccount.status !== "active" || toUserAccount.status !== "active") {
         return res.status(400).json({
             message: "fromAccount or toAccount is not active"
         })
@@ -80,7 +80,7 @@ async function createTransaction(req,res){
      */
     const balance = await fromUserAccount.GetBalance();
 
-    if(balance < amount){
+    if (balance < amount) {
         return res.status(400).json({
             message: "insufficient balance in fromUserAccount"
         })
@@ -91,19 +91,22 @@ async function createTransaction(req,res){
      */
     const session = await mongoose.startSession();
 
-    try{
+    try {
 
         session.startTransaction();
 
-        const [transaction] = await transactionModel.create([
-            {
-                fromAccount,
-                toAccount,
-                amount,
-                idempotencyKey,
-                status: "PENDING"
-            }
-        ], { session })
+        const [transaction] = await transactionModel.create(
+            [
+                {
+                    fromAccount,
+                    toAccount,
+                    amount,
+                    idempotencyKey,
+                    status: "PENDING"
+                }
+            ],
+            { session }
+        );
 
         const debitLedgerEntry = await ledgerModel.create([
             {
@@ -147,9 +150,12 @@ async function createTransaction(req,res){
             transaction
         })
 
-    }catch(err){
+    } catch (err) {
 
-        await session.abortTransaction();
+        if (session.inTransaction()) {
+            await session.abortTransaction();
+        }
+
         session.endSession();
 
         return res.status(500).json({
@@ -160,66 +166,68 @@ async function createTransaction(req,res){
 }
 
 
-async function createInitialFundsTransaction(req,res){
+async function createInitialFundsTransaction(req, res) {
 
     const { toAccount, amount, idempotencyKey } = req.body;
 
-    if(!toAccount || !amount || !idempotencyKey){
+    // Validate request
+    if (!toAccount || !amount || !idempotencyKey) {
         return res.status(400).json({
             message: "toAccount, amount and idempotencyKey are required fields"
-        })
+        });
     }
 
+    // Find receiver account
     const toUserAccount = await accountModel.findOne({
-        _id: toAccount,
-    })
+        _id: toAccount
+    });
 
-    if(!toUserAccount){
+    if (!toUserAccount) {
         return res.status(404).json({
             message: "toAccount not found"
-        })
+        });
     }
 
+    // Check idempotency key
     const existingTransaction = await transactionModel.findOne({
-        idempotencyKey: idempotencyKey
-    })
+        idempotencyKey
+    });
 
-    if(existingTransaction){
+    if (existingTransaction) {
         return res.status(409).json({
             message: "transaction with this idempotency key already exists"
-        })
+        });
     }
 
-    /**
-     * SystemUser lives on the User model, not the Account model.
-     * Find the system USER first, then find the account belonging to that user.
-     */
-    const systemUser = await userModel.findOne({
-        SystemUser: true
-    }).select("+SystemUser")
+    // Find System User
+    const systemUser = await userModel
+        .findOne({ SystemUser: true })
+        .select("+SystemUser");
 
-    if(!systemUser){
+    if (!systemUser) {
         return res.status(404).json({
             message: "system user not found"
-        })
+        });
     }
 
+    // Find System User's account
     const fromUserAccount = await accountModel.findOne({
         user: systemUser._id
-    })
+    });
 
-    if(!fromUserAccount){
+    if (!fromUserAccount) {
         return res.status(404).json({
-            message: "fromAccount not found"
-        })
+            message: "system user account not found"
+        });
     }
 
     const session = await mongoose.startSession();
 
-    try{
+    try {
 
         session.startTransaction();
 
+        // Create transaction
         const [transaction] = await transactionModel.create([
             {
                 fromAccount: fromUserAccount._id,
@@ -228,17 +236,19 @@ async function createInitialFundsTransaction(req,res){
                 idempotencyKey,
                 status: "PENDING"
             }
-        ], { session })
+        ], { session });
 
-        const creditLedgerEntry = await ledgerModel.create([
+        // Add money to receiver's ledger
+        await ledgerModel.create([
             {
                 account: toAccount,
                 type: "CREDIT",
                 amount: amount,
                 transaction: transaction._id
             }
-        ], { session })
+        ], { session });
 
+        // Mark transaction completed
         transaction.status = "COMPLETED";
 
         await transaction.save({ session });
@@ -250,17 +260,20 @@ async function createInitialFundsTransaction(req,res){
         return res.status(201).json({
             message: "initial funds added successfully",
             transaction
-        })
+        });
 
-    }catch(err){
+    } catch (err) {
 
-        await session.abortTransaction();
+        if (session.inTransaction()) {
+            await session.abortTransaction();
+        }
+
         session.endSession();
 
         return res.status(500).json({
             message: "initial funds transaction failed",
             error: err.message
-        })
+        });
     }
 }
 
