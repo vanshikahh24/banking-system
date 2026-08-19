@@ -8,4 +8,5 @@ router.post("/register", authController.UserRegister);
 
 router.post("/login", authController.UserLogin);
 
+router.post("/logout", authController.UserLogout);
 module.exports = router;
