@@ -121,6 +121,7 @@ async function UserLogout(req,res){
     await tokenBlackListModel.create({
         token: token
     })
+    res.clearCookie("token");
     res.status(200).json({
         message: "LOGOUT SUCCESSFUL"
     })

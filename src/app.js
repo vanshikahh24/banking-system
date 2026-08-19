@@ -9,7 +9,9 @@ const app = express();
 
 app.use(express.json());
 app.use(cookieParser());
-
+app.get("/", (req, res) => {
+   res.send("banking system api is running");
+});
 app.use("/api/auth", authRouter);
 app.use("/api/account", accountRouter);
 app.use("/api/transaction", transactionRoutes);
