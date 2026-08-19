@@ -137,7 +137,7 @@ async function createTransaction(req, res) {
         /**
          * send email notification to users
          */
-        await emailService.sendEmail(
+        await emailService.sendTransactionEmail(
             req.user.email,
             req.user.name,
             toAccount,
